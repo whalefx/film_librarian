@@ -1,0 +1,290 @@
+from PySide2.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QGridLayout, QHBoxLayout, QLabel,
+                               QFrame, QScrollArea, QMessageBox, QLineEdit, QSizePolicy, QComboBox)
+from PySide2.QtGui import QIcon, QFont, QPixmap
+from PySide2.QtCore import Qt, QSize, QRegExp
+from film_finder import read_data
+from functools import partial
+from thefuzz import fuzz
+import urllib
+import os
+
+
+class Window(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        # init window settings
+        self.setWindowTitle('Film Library')
+        self.setGeometry(100, 50, 1200, 800)
+        self.grid_amount = 3
+        self.scale = 0.15
+
+        # init button settings
+        self.wrapper = None
+        self.search_bar = None
+        self.search_menu = None
+        self.groupBox = None
+        self.grid_layout = None
+        self.tokens = {'Title': 'title', 'Director': 'directors', 'Genre': 'genres', 'Year': 'year'}
+        self.grid_alignment = (Qt.AlignLeft | Qt.AlignTop)
+
+        # init data
+        self.data = read_data()
+        self.search_results = self.data
+        self.searching = False
+        self._grid = None
+        self.search_mode = 'Title'
+
+        # create layout
+        self.layout = QVBoxLayout()
+        self.create_search_bar()
+        self.create_grid_layout(self.data)
+        self.layout.addLayout(self.create_search_bar())
+        self.layout.addWidget(self.groupBox)
+        self.setLayout(self.layout)
+        self.movies = self.wrapper.findChildren(QFrame, QRegExp('film_.+'))
+
+    def _add_films_to_grid(self, film_data):
+        """
+        Creates a QFrame containing an image and label for each film in the library
+
+        :param film_data:
+            The data from the json file containing the library
+
+        :return:
+            None
+        """
+
+        # TODO: should this be merged with the create_grid_layout method?
+        # make posters folder if it doesn't already exist
+        _dir = os.path.dirname(os.path.abspath(__file__))
+        poster_folder = os.path.join(_dir, 'posters')
+        if not os.path.isdir(poster_folder):
+            os.mkdir(poster_folder)
+
+        for i, (k, v) in enumerate(film_data.items()):
+            frame = QFrame(self.groupBox)
+            vbox = QVBoxLayout()
+
+            # check if poster is saved, use poster on disk for pixmap
+            poster_file = os.path.join(poster_folder, f'{k}.png')
+            if not os.path.isfile(poster_file):
+                # save poster to disk
+                url = v['poster']
+                img_data = urllib.request.urlopen(url).read()
+                with open(poster_file, 'wb') as handler:
+                    handler.write(img_data)
+            pixmap = QPixmap()
+            pixmap.load(poster_file)
+
+            # setup poster button
+            poster_button = QPushButton(QIcon(pixmap), '')
+            poster_button.setFlat(True)
+            poster_button.setIconSize(QSize(int(2000 * self.scale), int(3000 * self.scale)))
+
+            # connect buttons to method, using the partial method to link each button individually
+            poster_button.clicked.connect(partial(self.show_film_info, film_id=k))
+
+            vbox.addWidget(poster_button)
+
+            # setup text
+            film = QLabel(v['title'])
+            film.setAlignment(Qt.AlignHCenter | Qt.AlignBottom)
+            film.setFont(QFont('Sanserif', 13))
+            vbox.addWidget(film)
+
+            # add additional info
+            info = QLabel('info')
+            info.setAlignment(Qt.AlignHCenter | Qt.AlignBottom)
+            info.setFont(QFont('Sanserif', 11))
+            info.setObjectName('info')
+            info.hide()
+            vbox.addWidget(info)
+
+            # setup frame
+            frame.setLayout(vbox)
+            frame.setFrameShape(QFrame.Panel)
+            frame.setFrameShadow(QFrame.Raised)
+            frame.setObjectName(k)
+
+            # set horizontal and vertical position on the grid, add this to the dictionary for later
+            horizontal = i % self.grid_amount
+            vertical = i / self.grid_amount
+            self.grid_layout.addWidget(frame, vertical, horizontal, alignment=self.grid_alignment)
+            v['orig_pos'] = (vertical, horizontal)
+            frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+    def create_search_bar(self):
+        """
+        Creates a search bar and menu containing the search types
+
+        :return:
+            The hbox containing the search bar and menu
+        """
+        hbox = QHBoxLayout()
+        # create search bar
+        self.search_bar = QLineEdit('')
+        self.search_bar.textChanged.connect(self.search)
+
+        # create search menu with an item for each entry in the self.token dict
+        self.search_menu = QComboBox()
+        for x in self.tokens.keys():
+            self.search_menu.addItem(x)
+        # call the update_search_mode method whenever the search menu is changed
+        self.search_menu.currentTextChanged.connect(self.update_search_mode)
+
+        # add widgets to the hbox
+        hbox.addWidget(self.search_bar)
+        hbox.addWidget(self.search_menu)
+
+        return hbox
+
+    def create_grid_layout(self, film_data):
+        """
+        Creates the grid layout for the films and the scroll bar
+
+        :param film_data:
+            The data from the json file containing the library
+
+        :return:
+        """
+        self.groupBox = QFrame()
+
+        # setup scrollbar
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        self.wrapper = QWidget(self.groupBox)
+        scroll.setWidget(self.wrapper)
+        self.layout.addWidget(scroll)
+
+        # add grid layout to dummy wrapper
+        self.grid_layout = QGridLayout(self.wrapper)
+
+        # add films to the grid
+        self._add_films_to_grid(film_data)
+
+    def update_search_mode(self):
+        """
+        Updates the search mode based on the value of the search menu
+
+        :return:
+            None
+        """
+
+        # update search mode
+        idx = self.search_menu.currentIndex()
+        self.search_mode = self.search_menu.itemText(idx)
+        self.search_bar.setText('')
+
+        # update film text
+        token = self.tokens[self.search_mode]
+        for movie in self.movies:
+            info = self.data[movie.objectName()][token]
+            if isinstance(info, list):
+                info = ', '.join(info)
+            else:
+                info = str(info)
+
+            # find the info label associated with this movie and set it
+            info_box = movie.findChildren(QLabel, QRegExp('info'))[0]
+            info_box.setText(info)
+
+    def show_film_info(self, film_id):
+        """
+        Creates a message box containing information about the film
+
+        :param film_id:
+            The ID number associated with the selected film
+
+        :return:
+            None
+        """
+
+        # TODO: Have this pop up also contain further actions such as marking a film as seen
+
+        # find film data for selected film
+        film_data = self.data[film_id]
+
+        # if film has a tagline prepare it
+        tagline = ''
+        if len(film_data['tagline'])>0:
+            tagline = f'\t{film_data["tagline"]}\n\n'
+
+        # create the info text
+        info = f'''{tagline}
+                Year: {film_data['year']}\n
+                Directed By: {', '.join(film_data['directors'])}\n
+                Written By: {', '.join(film_data['writers'])}\n
+                Genre: {', '.join(film_data['genres'])} 
+                '''
+
+        # launch the message box
+        QMessageBox.about(self, film_data['title'], info)
+
+    def search(self):
+        """
+        Searches for the film based on the search text and search type
+
+        :return:
+            None
+        """
+
+        # init search attributes
+        self.searching = True
+        self.search_results = self.data
+        text = self.search_bar.text()
+
+        # grab the search token for the search mode
+        token = self.tokens[self.search_mode]
+
+        # deactivate if text is blank
+        if len(text) == 0:
+            self.searching = False
+            for movie in self.movies:
+                # reset position to initial position
+                pos = self.data[movie.objectName()]['orig_pos']
+                self.grid_layout.addWidget(movie, pos[0], pos[1], alignment=self.grid_alignment)
+                # hide info box for all films
+                movie.findChildren(QLabel, QRegExp('info'))[0].hide()
+                movie.show()
+            return
+
+        # search for string results
+        _search_results = {}
+
+        # find which films match the search term, using the fuzzywuzzy library for better results on non-exact terms
+        for k, v in self.search_results.items():
+            match = False
+
+            ratio = fuzz.token_set_ratio(v[token], str(text))
+            # TODO: Test the ratio amount, could more or less be used based on the search token?
+            if ratio > 50:
+                v['ratio'] = ratio
+                match = True
+
+            if match:
+                v['frame'] = [x for x in self.movies if x.objectName() == k][0]
+                _search_results[k] = v
+
+        # sort search results by how much it matched
+        _search_results = dict(sorted(_search_results.items(), key=lambda item: (-item[1]['ratio'], item[1]['title'])))
+
+        self.search_results = _search_results
+
+        # only show movies from search results
+        for movie in self.movies:
+            movie.show()
+            # do not show subtitle if searching by title
+            if token != 'title':
+                movie.findChildren(QLabel, QRegExp('info'))[0].show()
+            else:
+                movie.findChildren(QLabel, QRegExp('info'))[0].hide()
+            if movie.objectName() not in self.search_results:
+                movie.hide()
+
+        # layout relevant movies based on their search order
+        for i, (k, v) in enumerate(self.search_results.items()):
+            frame = v['frame']
+            horizontal = i % self.grid_amount
+            vertical = i / self.grid_amount
+            self.grid_layout.addWidget(frame, vertical, horizontal, alignment=self.grid_alignment)
