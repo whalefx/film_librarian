@@ -2,3 +2,5 @@ api_key.*
 posters/*
 *.png
 list_data.json
+__pycache__/*
+*.pyc
