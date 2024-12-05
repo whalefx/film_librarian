@@ -4,9 +4,11 @@ from PySide2.QtGui import QIcon, QFont, QPixmap
 from PySide2.QtCore import Qt, QSize, QRegExp
 from film_finder import read_data
 from functools import partial
-from thefuzz import fuzz
+from thefuzz import fuzz, process
 import urllib
 import os
+from textwrap import fill
+import re
 
 
 class Window(QWidget):
@@ -25,7 +27,8 @@ class Window(QWidget):
         self.search_menu = None
         self.groupBox = None
         self.grid_layout = None
-        self.tokens = {'Title': 'title', 'Director': 'directors', 'Genre': 'genres', 'Year': 'year'}
+        self.tokens = {'Title': 'title', 'Director': 'directors', 'Genre': 'genres', 'Year': 'year', 'Actors': 'actors',
+                       'Characters': 'characters', 'Writer': 'writers', 'Country': 'country'}
         self.grid_alignment = (Qt.AlignLeft | Qt.AlignTop)
 
         # init data
@@ -178,8 +181,12 @@ class Window(QWidget):
 
         # update film text
         token = self.tokens[self.search_mode]
+
         for movie in self.movies:
-            info = self.data[movie.objectName()][token]
+            if token == 'actors' or token == 'characters':
+                return
+            else:
+                info = self.data[movie.objectName()][token]
             if isinstance(info, list):
                 info = ', '.join(info)
             else:
@@ -254,15 +261,64 @@ class Window(QWidget):
 
         # find which films match the search term, using the fuzzywuzzy library for better results on non-exact terms
         for k, v in self.search_results.items():
-            match = False
+            search_dict = True
+            tolerance = 50
+            ratio = 0
 
-            ratio = fuzz.token_set_ratio(v[token], str(text))
-            # TODO: Test the ratio amount, could more or less be used based on the search token?
-            if ratio > 50:
+            # get the relevant data to search based on the token
+            if token == 'actors':
+                film_data_to_search = list(v['actors'].keys())
+            elif token == 'characters':
+                film_data_to_search = list(v['actors'].values())
+            else:
+                film_data_to_search = v[token]
+                search_dict = False
+
+            str_text = str(text)
+            if search_dict:
+                # for dict searches get the matches and the ratio from the process.extract method
+                tolerance = 80
+                search = process.extract(str_text, film_data_to_search, limit=1000)
+                matches = [x for x, r in search if r >= tolerance]
+                ratio = max([r for x, r in search])
+                if len(matches) == 0:
+                    ratio = 0
+                else:
+                    # if match found update the text box (the results are dynamic, so it has to be done at search time)
+                    movie = [x for x in self.movies if x.objectName() == f'film_{v["id"]}'][0]
+                    info = ', '.join(matches)
+
+                    # using textwrap to make sure boxes with lots of info don't grow horizontally
+                    info = fill(info, 48)
+
+                    # find info box for this film
+                    info_box = movie.findChildren(QLabel, QRegExp('info'))[0]
+                    info_box.setText(info)
+            elif token == 'year':
+                # check if searching for a decade
+                # TODO: clean up this regex statement, technically it shouldn't allow for 3 digit years
+                if re.fullmatch(r'\d{2,4}s', str_text):
+                    if len(str_text) == 3:
+                        # assume the 20th century if not specified (i.e. 20s would refer to 1920s not 2020s)
+                        str_text = '19' + str_text
+
+                    # automatically succeed if century and decade match
+                    ratio = 100 if str_text[1:3] == str(film_data_to_search)[1:3] else 0
+
+                    # subtract by the year in the decade to sort ascending
+                    ratio -= int(str(film_data_to_search)[-1])
+                else:
+                    # if a film is within 4 years of the year searched add it to the results
+                    try:
+                        ratio = 54-(abs(int(film_data_to_search)-int(text)))
+                    except ValueError:
+                        self.search_bar.setText('')
+            else:
+                # search strings and lists normally
+                ratio = fuzz.token_set_ratio(film_data_to_search, str_text)
+
+            if ratio >= tolerance:
                 v['ratio'] = ratio
-                match = True
-
-            if match:
                 v['frame'] = [x for x in self.movies if x.objectName() == k][0]
                 _search_results[k] = v
 
