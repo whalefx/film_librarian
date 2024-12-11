@@ -296,8 +296,8 @@ class Window(QWidget):
                     info_box.setText(info)
             elif token == 'year':
                 # check if searching for a decade
-                # TODO: clean up this regex statement, technically it shouldn't allow for 3 digit years
-                if re.fullmatch(r'\d{2,4}s', str_text):
+                pattern = r'^(?:\d{1}|\d{3})0s$'
+                if re.fullmatch(pattern, str_text):
                     if len(str_text) == 3:
                         # assume the 20th century if not specified (i.e. 20s would refer to 1920s not 2020s)
                         str_text = '19' + str_text
