@@ -4,4 +4,7 @@ posters/*
 list_data.json
 __pycache__/*
 *.pyc
-.idea/*
+.idea/workspace.xml
+.idea/usage.statistics.xml
+.idea/shelf
+*.iml
