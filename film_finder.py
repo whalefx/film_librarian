@@ -3,7 +3,7 @@ import json
 import asyncio
 from themoviedb import aioTMDb
 from api_key import KEY
-from pprint import pprint
+from film_data_defaults import data_defaults as default
 
 # init variables for json path
 # TODO: Have custom path option for the library file?
@@ -66,7 +66,6 @@ async def search_film(film, list_item=0):
         return None, None
 
     found_film = await tmdb.movie(film_id).details(append_to_response="credits,external_ids,images")
-    pprint(found_film)
     img = found_film.poster_url()
 
     title = f'film_{film_id}'
@@ -96,6 +95,13 @@ async def search_film(film, list_item=0):
         actors.update(_actors)
 
     film_data[title]['actors'].update(actors)
+
+    # add missing data from defaults
+    for k, v in default.items():
+        if k in film_data[title].keys():
+            continue
+
+        film_data[title][k] = v
 
     return img, film_data
 
