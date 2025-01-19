@@ -4,6 +4,8 @@ import asyncio
 from themoviedb import aioTMDb
 from api_key import KEY
 from film_data_defaults import data_defaults as default
+from film_data_defaults import get_film_details
+from dataclasses import dataclass, fields, asdict
 
 # init variables for json path
 # TODO: Have custom path option for the library file?
@@ -65,36 +67,9 @@ async def search_film(film, list_item=0):
         print(f'No other films names {film} found!')
         return None, None
 
-    found_film = await tmdb.movie(film_id).details(append_to_response="credits,external_ids,images")
-    img = found_film.poster_url()
-
+    # get film information
+    img, film_data = await get_film_details(tmdb, film_id)
     title = f'film_{film_id}'
-    film_data = {title: {
-        'year': found_film.year,
-        'genres': [x.name for x in found_film.genres],
-        'language': found_film.original_language,
-        'country': [x.name for x in found_film.production_countries],
-        'actors': {},
-        'writers': [x.name for x in found_film.credits.crew if x.department == 'Writing'],
-        'directors': [x.name for x in found_film.credits.crew if x.job == 'Director'],
-        'runtime': found_film.runtime,
-        'tagline': found_film.tagline,
-        'poster': found_film.poster_url(),
-        'id': film_id,
-        'title': found_film.title,
-        # keywords appear broken (always returning None), but I am leaving this in for now
-        'keywords': found_film.keywords
-        }
-    }
-
-    # assemble sub lists/dicts
-    actors = {}
-
-    for a in found_film.credits.cast:
-        _actors = {a.name: a.character}
-        actors.update(_actors)
-
-    film_data[title]['actors'].update(actors)
 
     # add missing data from defaults
     for k, v in default.items():
