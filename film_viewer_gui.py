@@ -28,7 +28,7 @@ class Window(QWidget):
         self.groupBox = None
         self.grid_layout = None
         self.tokens = {'Title': 'title', 'Director': 'directors', 'Genre': 'genres', 'Year': 'year', 'Actors': 'actors',
-                       'Characters': 'characters', 'Writer': 'writers', 'Country': 'country'}
+                       'Characters': 'characters', 'Writer': 'writers', 'Country': 'country', 'Keywords': 'keywords'}
         self.grid_alignment = (Qt.AlignLeft | Qt.AlignTop)
 
         # init data
@@ -270,6 +270,8 @@ class Window(QWidget):
                 film_data_to_search = list(v['actors'].keys())
             elif token == 'characters':
                 film_data_to_search = list(v['actors'].values())
+            elif token == 'keywords':
+                film_data_to_search = v['keywords']
             else:
                 film_data_to_search = v[token]
                 search_dict = False
@@ -280,20 +282,20 @@ class Window(QWidget):
                 tolerance = 80
                 search = process.extract(str_text, film_data_to_search, limit=1000)
                 matches = [x for x, r in search if r >= tolerance]
-                ratio = max([r for x, r in search])
+
                 if len(matches) == 0:
                     ratio = 0
                 else:
+                    ratio = max([r for x, r in search])
                     # if match found update the text box (the results are dynamic, so it has to be done at search time)
                     movie = [x for x in self.movies if x.objectName() == f'film_{v["id"]}'][0]
                     info = ', '.join(matches)
-
                     # using textwrap to make sure boxes with lots of info don't grow horizontally
                     info = fill(info, 48)
 
                     # find info box for this film
                     info_box = movie.findChildren(QLabel, QRegExp('info'))[0]
-                    info_box.setText(info)
+                    info_box.setText(info.title())
             elif token == 'year':
                 # check if searching for a decade
                 pattern = r'^(?:\d{1}|\d{3})0s$'
