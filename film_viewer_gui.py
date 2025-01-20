@@ -1,5 +1,5 @@
 from PySide2.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QGridLayout, QHBoxLayout, QLabel,
-                               QFrame, QScrollArea, QMessageBox, QLineEdit, QSizePolicy, QComboBox)
+                               QFrame, QScrollArea, QMessageBox, QLineEdit, QSizePolicy, QComboBox, QCompleter)
 from PySide2.QtGui import QIcon, QFont, QPixmap
 from PySide2.QtCore import Qt, QSize, QRegExp
 from film_finder import read_data
@@ -9,6 +9,7 @@ import urllib
 import os
 from textwrap import fill
 import re
+from pre_launch import pre_launch_viewer
 
 
 class Window(QWidget):
@@ -37,6 +38,7 @@ class Window(QWidget):
         self.searching = False
         self._grid = None
         self.search_mode = 'Title'
+        self.keywords = pre_launch_viewer()
 
         # create layout
         self.layout = QVBoxLayout()
@@ -195,6 +197,12 @@ class Window(QWidget):
             # find the info label associated with this movie and set it
             info_box = movie.findChildren(QLabel, QRegExp('info'))[0]
             info_box.setText(info)
+
+        # setup completer
+        completer = QCompleter([''])
+        if token == 'keywords':
+            completer = QCompleter([x for x in self.keywords.keys()])
+        self.search_bar.setCompleter(completer)
 
     def show_film_info(self, film_id):
         """

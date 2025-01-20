@@ -1,7 +1,6 @@
 from film_data_defaults import data_defaults as default
 from film_data_defaults import get_film_details
 from film_finder import read_data, log_film
-from pprint import pprint
 from themoviedb import aioTMDb
 from api_key import KEY
 import asyncio
@@ -38,8 +37,28 @@ async def update_missing_values(ignore=()):
                 log_film(film_data)
 
 
-def pre_launch():
+def get_all_keywords():
+    data = read_data()
+    all_keywords = dict()
+    for film_id, v in data.items():
+        film_data = v
+        for keyword in film_data['keywords']:
+            if keyword not in all_keywords.keys():
+                all_keywords[keyword] = 1
+            else:
+                count = all_keywords[keyword]
+                all_keywords[keyword] = count+1
+    all_keywords = dict(sorted(all_keywords.items(), key=lambda item: (-item[-1], item)))
+    return all_keywords
+
+
+def pre_launch_main():
     init_missing_data()
     asyncio.run(update_missing_values())
+
+
+def pre_launch_viewer():
+    keywords = get_all_keywords()
+    return keywords
 
 

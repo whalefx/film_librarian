@@ -8,3 +8,4 @@ __pycache__/*
 .idea/usage.statistics.xml
 .idea/shelf
 *.iml
+list_data_backuo.json

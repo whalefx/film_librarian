@@ -1,6 +1,6 @@
 from film_finder_gui import Window as Search_gui
 from film_viewer_gui import Window as Viewer_gui
-from pre_launch import pre_launch
+from pre_launch import pre_launch_main
 from PySide2.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton
 import sys
 
@@ -45,7 +45,7 @@ class Window(QWidget):
         self.app.show()
 
 
-pre_launch()
+pre_launch_main()
 myapp = QApplication(sys.argv)
 window = Window()
 window.show()
