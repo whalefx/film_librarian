@@ -3,6 +3,7 @@ from PySide2.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, 
 from PySide2.QtGui import QIcon, QFont, QPixmap
 from PySide2.QtCore import Qt, QSize, QRegExp
 from film_finder import read_data
+from film_info_gui import Window as Info
 from functools import partial
 from thefuzz import fuzz, process
 import urllib
@@ -29,7 +30,8 @@ class Window(QWidget):
         self.groupBox = None
         self.grid_layout = None
         self.tokens = {'Title': 'title', 'Director': 'directors', 'Genre': 'genres', 'Year': 'year', 'Actors': 'actors',
-                       'Characters': 'characters', 'Writer': 'writers', 'Country': 'country', 'Keywords': 'keywords'}
+                       'Characters': 'characters', 'Writer': 'writers', 'Country': 'country', 'Keywords': 'keywords',
+                       'Format': 'format'}
         self.grid_alignment = (Qt.AlignLeft | Qt.AlignTop)
 
         # init data
@@ -39,6 +41,7 @@ class Window(QWidget):
         self._grid = None
         self.search_mode = 'Title'
         self.keywords = pre_launch_viewer()
+        self.info_popup = None
 
         # create layout
         self.layout = QVBoxLayout()
@@ -214,27 +217,8 @@ class Window(QWidget):
         :return:
             None
         """
-
-        # TODO: Have this pop up also contain further actions such as marking a film as seen
-
-        # find film data for selected film
-        film_data = self.data[film_id]
-
-        # if film has a tagline prepare it
-        tagline = ''
-        if len(film_data['tagline'])>0:
-            tagline = f'\t{film_data["tagline"]}\n\n'
-
-        # create the info text
-        info = f'''{tagline}
-                Year: {film_data['year']}\n
-                Directed By: {', '.join(film_data['directors'])}\n
-                Written By: {', '.join(film_data['writers'])}\n
-                Genre: {', '.join(film_data['genres'])} 
-                '''
-
-        # launch the message box
-        QMessageBox.about(self, film_data['title'], info)
+        self.info_popup = Info(film_id, self.data, self.update_search_mode)
+        self.info_popup.show()
 
     def search(self):
         """

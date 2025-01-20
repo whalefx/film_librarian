@@ -1,6 +1,6 @@
 api_key.*
 posters/*
-*.png
+logo.png
 list_data.json
 __pycache__/*
 *.pyc

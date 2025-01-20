@@ -12,13 +12,13 @@ data_defaults = {
     'id': None,
     'title': None,
     'keywords': None,
-    'format': 'DVD',
+    'format': 'dvd',
     'region': 2,
     'width': 14,
     'boxset': False
     }
 
-from dataclasses import dataclass, fields, asdict
+from dataclasses import fields
 
 
 async def get_film_details(tmdb, film_id):
