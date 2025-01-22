@@ -16,7 +16,7 @@ data_defaults = {
     'region': 2,
     'width': 14,
     'boxset': False
-    }
+}
 
 from dataclasses import fields
 
@@ -40,7 +40,7 @@ async def get_film_details(tmdb, film_id):
         'id': film_id,
         'title': found_film.title,
         'keywords': []
-        }
+    }
     }
 
     # assemble sub lists/dicts

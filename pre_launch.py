@@ -52,6 +52,21 @@ def get_all_keywords():
     return all_keywords
 
 
+def reset_data():
+    data = read_data()
+    custom_data = dict()
+    for k, v in default.items():
+        if isinstance(v, dict) or isinstance(v, list) or v is None:
+            continue
+
+        custom_data[k] = v
+
+    for film_id, v in data.items():
+        v.update(custom_data)
+        film_data = {film_id: v}
+        log_film(film_data)
+
+
 def pre_launch_main():
     init_missing_data()
     asyncio.run(update_missing_values())
@@ -60,5 +75,3 @@ def pre_launch_main():
 def pre_launch_viewer():
     keywords = get_all_keywords()
     return keywords
-
-

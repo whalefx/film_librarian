@@ -10,9 +10,15 @@ FORMAT_ICONS = {
             '4k': 'icons/ultra_hd_bluray_logo.png'
         }
 
+FORMAT_OPTIONS = {
+    'dvd': (1, 2),
+    'bluray': ('A', 'B'),
+    '4k': (None,)
+}
+
 
 class Window(QWidget):
-    def __init__(self, film_id, data, update_search_mode):
+    def __init__(self, film_id, data, update_search_mode, locked):
         super().__init__()
 
         # init data
@@ -22,6 +28,7 @@ class Window(QWidget):
         self.format = self.film_data['format']
         self.region = self.film_data['region']
         self.update_search_mode = update_search_mode
+        self.locked = locked
 
         # init buttons
         self.format_button = None
@@ -63,22 +70,23 @@ class Window(QWidget):
         self.format_button = QPushButton()
         self.change_format_icon(False)
         self.format_button.clicked.connect(lambda: self.change_format_icon(True))
+        self.format_button.setFlat(True)
         hbox.addWidget(self.format_button)
 
-        region_button = QPushButton()
-        region_icon = QIcon()
-        region_icon.addPixmap(QPixmap('icons/ultra_hd_bluray_logo.png'))
-        region_button.setIcon(region_icon)
-        region_button.setIconSize(QSize(160, 90))
-        hbox.addWidget(region_button)
+        self.region_button = QPushButton()
+        self.change_region_icon(False)
+        self.region_button.clicked.connect(lambda: self.change_region_icon(True))
+        self.region_button.setFlat(True)
+        hbox.addWidget(self.region_button)
 
         self.layout.addLayout(hbox)
 
     def change_format_icon(self, cycle=True):
+
         # init icon
         format_icon = QIcon()
 
-        if cycle:
+        if cycle and not self.locked:
             # get next format option in the dict
             format_list = list(FORMAT_ICONS)
             index = format_list.index(self.format.lower())
@@ -88,15 +96,59 @@ class Window(QWidget):
             # update the format option to internal data in this window, main window, and json file
             data = read_data()[self.film_id]
             data = {self.film_id: data}
-            data[self.film_id].update({'format': self.format})
+
+            self.region = FORMAT_OPTIONS[self.format][0]
+
+            updated_data = {'format': self.format, 'region': self.region}
+
+            data[self.film_id].update(updated_data)
             log_film(data)
-            self.data[self.film_id].update({'format': self.format})
+            self.data[self.film_id].update(updated_data)
+
             # reinit the format text
             self.update_search_mode()
+            self.change_region_icon(False)
 
         # set format icon
         format_icon.addPixmap(QPixmap(FORMAT_ICONS[self.format.lower()]))
         self.format_button.setIcon(format_icon)
         self.format_button.setIconSize(QSize(160, 90))
+
+    def change_region_icon(self, cycle):
+        # init icon
+        region_icon = QIcon()
+
+        region_options = FORMAT_OPTIONS[self.format]
+
+        if cycle and not self.locked:
+            index = region_options.index(self.region)
+            index = index + 1 if (index + 1) < len(region_options) else 0
+
+            self.region = region_options[index]
+
+            # update the region information to internal data in this window, main window, and json file
+            data = read_data()[self.film_id]
+            data = {self.film_id: data}
+
+            updated_data = {'region': self.region}
+
+            data[self.film_id].update(updated_data)
+            log_film(data)
+            self.data[self.film_id].update(updated_data)
+
+            # reinit the format text
+            self.update_search_mode()
+
+        if self.format == 'dvd':
+            image = f'icons/dvd_region{self.region}.png'
+        elif self.format == 'bluray':
+            image = f'icons/bluray_region{self.region}.png'
+        elif self.format == '4k':
+            image = f'icons/4k_regionfree.png'
+
+        # set region icon
+        region_icon.addPixmap(QPixmap(image))
+        self.region_button.setIcon(region_icon)
+        self.region_button.setIconSize(QSize(160, 90))
 
 

@@ -9,3 +9,5 @@ __pycache__/*
 .idea/shelf
 *.iml
 list_data_backuo.json
+*.svg
+*.afdesign

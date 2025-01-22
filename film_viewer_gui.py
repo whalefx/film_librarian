@@ -1,5 +1,5 @@
 from PySide2.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QGridLayout, QHBoxLayout, QLabel,
-                               QFrame, QScrollArea, QMessageBox, QLineEdit, QSizePolicy, QComboBox, QCompleter)
+                               QFrame, QScrollArea, QMessageBox, QLineEdit, QSizePolicy, QComboBox, QCompleter, QMenu, QMenuBar)
 from PySide2.QtGui import QIcon, QFont, QPixmap
 from PySide2.QtCore import Qt, QSize, QRegExp
 from film_finder import read_data
@@ -29,6 +29,7 @@ class Window(QWidget):
         self.search_menu = None
         self.groupBox = None
         self.grid_layout = None
+        self.lock_button = None
         self.tokens = {'Title': 'title', 'Director': 'directors', 'Genre': 'genres', 'Year': 'year', 'Actors': 'actors',
                        'Characters': 'characters', 'Writer': 'writers', 'Country': 'country', 'Keywords': 'keywords',
                        'Format': 'format'}
@@ -42,10 +43,12 @@ class Window(QWidget):
         self.search_mode = 'Title'
         self.keywords = pre_launch_viewer()
         self.info_popup = None
+        self.locked = True
 
         # create layout
         self.layout = QVBoxLayout()
         self.create_search_bar()
+        self.layout.addLayout(self.create_filter_bar())
         self.create_grid_layout(self.data)
         self.layout.addLayout(self.create_search_bar())
         self.layout.addWidget(self.groupBox)
@@ -121,6 +124,26 @@ class Window(QWidget):
             self.grid_layout.addWidget(frame, vertical, horizontal, alignment=self.grid_alignment)
             v['orig_pos'] = (vertical, horizontal)
             frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+    def create_filter_bar(self):
+        hbox = QHBoxLayout()
+
+        # create lock button
+        self.lock_button = QPushButton()
+        self.lock_button.clicked.connect(self.lock_changes)
+
+        hbox.addWidget(self.lock_button)
+
+        self.lock_changes(init=True)
+
+        # text = QMenu()
+        # menu1 = text.addMenu('File')
+        # menu2 = text.addMenu('Open')
+        #
+        #
+        # hbox.addWidget(text)
+
+        return hbox
 
     def create_search_bar(self):
         """
@@ -217,7 +240,7 @@ class Window(QWidget):
         :return:
             None
         """
-        self.info_popup = Info(film_id, self.data, self.update_search_mode)
+        self.info_popup = Info(film_id, self.data, self.update_search_mode, self.locked)
         self.info_popup.show()
 
     def search(self):
@@ -338,3 +361,17 @@ class Window(QWidget):
             horizontal = i % self.grid_amount
             vertical = i / self.grid_amount
             self.grid_layout.addWidget(frame, vertical, horizontal, alignment=self.grid_alignment)
+
+    def lock_changes(self, init=False):
+        if not init:
+            self.locked = not self.locked
+
+        icon = QIcon()
+
+        if self.locked:
+            icon.addPixmap(QPixmap('icons/locked.png'))
+        else:
+            icon.addPixmap(QPixmap('icons/unlocked.png'))
+
+        self.lock_button.setIcon(icon)
+        self.lock_button.setIconSize(QSize(15, 15))
