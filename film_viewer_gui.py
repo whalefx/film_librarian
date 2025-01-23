@@ -128,14 +128,6 @@ class Window(QWidget):
     def create_filter_bar(self):
         hbox = QHBoxLayout()
 
-        # create lock button
-        self.lock_button = QPushButton()
-        self.lock_button.clicked.connect(self.lock_changes)
-
-        hbox.addWidget(self.lock_button)
-
-        self.lock_changes(init=True)
-
         # text = QMenu()
         # menu1 = text.addMenu('File')
         # menu2 = text.addMenu('Open')
@@ -240,7 +232,7 @@ class Window(QWidget):
         :return:
             None
         """
-        self.info_popup = Info(film_id, self.data, self.update_search_mode, self.locked)
+        self.info_popup = Info(film_id, self.data, self.update_search_mode)
         self.info_popup.show()
 
     def search(self):
@@ -361,17 +353,3 @@ class Window(QWidget):
             horizontal = i % self.grid_amount
             vertical = i / self.grid_amount
             self.grid_layout.addWidget(frame, vertical, horizontal, alignment=self.grid_alignment)
-
-    def lock_changes(self, init=False):
-        if not init:
-            self.locked = not self.locked
-
-        icon = QIcon()
-
-        if self.locked:
-            icon.addPixmap(QPixmap('icons/locked.png'))
-        else:
-            icon.addPixmap(QPixmap('icons/unlocked.png'))
-
-        self.lock_button.setIcon(icon)
-        self.lock_button.setIconSize(QSize(15, 15))

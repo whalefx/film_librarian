@@ -1,8 +1,9 @@
 from PySide2.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QGridLayout, QHBoxLayout, QLabel,
-                               QFrame, QScrollArea, QMessageBox, QLineEdit, QSizePolicy, QComboBox, QCompleter)
+                               QFrame, QScrollArea, QMessageBox, QLineEdit, QSizePolicy, QComboBox, QCompleter, QBoxLayout)
 from PySide2.QtGui import QIcon, QFont, QPixmap
 from PySide2.QtCore import Qt, QSize, QRegExp
 from film_finder import log_film, read_data
+from textwrap import fill
 
 FORMAT_ICONS = {
             'dvd': 'icons/dvd_logo.png',
@@ -18,7 +19,7 @@ FORMAT_OPTIONS = {
 
 
 class Window(QWidget):
-    def __init__(self, film_id, data, update_search_mode, locked):
+    def __init__(self, film_id, data, update_search_mode):
         super().__init__()
 
         # init data
@@ -28,40 +29,75 @@ class Window(QWidget):
         self.format = self.film_data['format']
         self.region = self.film_data['region']
         self.update_search_mode = update_search_mode
-        self.locked = locked
+        self.locked = True
 
         # init buttons
         self.format_button = None
         self.region_button = None
+        self.lock_button = None
 
         # init layout
         self.layout = QVBoxLayout()
+        self.add_lock()
         self.add_info()
         self.add_buttons()
 
         self.setLayout(self.layout)
+        self.layout.setAlignment(Qt.AlignCenter)
+
+        self.setMaximumSize(QSize(self.size()))
+
+    def add_lock(self):
+        layout = QHBoxLayout()
+        # create lock button
+        self.lock_button = QPushButton()
+        self.lock_button.clicked.connect(self.lock_changes)
+        self.lock_button.setFlat(True)
+        self.lock_button.setFixedSize(QSize(25, 25))
+
+        layout.addWidget(self.lock_button)
+        layout.setAlignment(self.lock_button, (Qt.AlignLeft | Qt.AlignTop))
+
+        self.lock_changes(init=True)
+
+        self.layout.addLayout(layout)
 
     def add_info(self):
+        def wrap(text, label=None):
+            data = film_data[text]
+
+            if isinstance(data, list):
+                data = ', '.join(data)
+            else:
+                data = str(data)
+
+            _text = fill(data, 60, subsequent_indent='\t\t')
+
+            if label:
+                _text = f'{label:.>30}{_text}'
+            return _text
+
         # find film data for selected film
         film_data = self.film_data
 
         # if film has a tagline prepare it
         tagline = ''
-        if len(film_data['tagline'])>0:
-            tagline = f'\t{film_data["tagline"]}\n\n'
+        if len(film_data['tagline']) > 0:
+            tagline = f'\t{wrap("tagline")}\n\n'
 
         # create the info text
         info_txt = f'''{tagline}
-                Year: {film_data['year']}\n
-                Directed By: {', '.join(film_data['directors'])}\n
-                Written By: {', '.join(film_data['writers'])}\n
-                Genre: {', '.join(film_data['genres'])} 
+                Year: {film_data["year"]}\n
+                Directed By: {wrap("directors")}\n
+                Written By: {wrap("writers")}\n
+                Genre: {wrap("genres")} 
                 '''
 
         info = QLabel(info_txt)
 
         title = f"{film_data['title']} - {film_data['year']}"
         self.setWindowTitle(title)
+
         self.layout.addWidget(info)
 
     def add_buttons(self):
@@ -151,4 +187,17 @@ class Window(QWidget):
         self.region_button.setIcon(region_icon)
         self.region_button.setIconSize(QSize(160, 90))
 
+    def lock_changes(self, init=False):
+        if not init:
+            self.locked = not self.locked
+
+        icon = QIcon()
+
+        if self.locked:
+            icon.addPixmap(QPixmap('icons/locked.png'))
+        else:
+            icon.addPixmap(QPixmap('icons/unlocked.png'))
+
+        self.lock_button.setIcon(icon)
+        self.lock_button.setIconSize(QSize(15, 15))
 
