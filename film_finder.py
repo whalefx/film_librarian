@@ -75,7 +75,7 @@ async def search_film(film, list_item=0):
     for k, v in default.items():
         if k in film_data[title].keys():
             continue
-
+        print(k, film_data[title])
         film_data[title][k] = v
 
     return img, film_data
@@ -97,7 +97,7 @@ def search_film_async(film, list_item=0):
     return img, film_data
 
 
-def log_film(film_data):
+def log_film(film_data=None):
     """
     Loads in the saved library data and writes the chosen film to its database
 
@@ -109,12 +109,14 @@ def log_film(film_data):
     # write data to json
     with open(json_path, 'r+') as file:
         data = json.load(file)
-        data.update(film_data)
+        if film_data:
+            data.update(film_data)
 
     with open(json_path, 'w') as file:
-        data = dict(sorted(data.items(), key=lambda item: (item[1]['title'], item[1]['year'])))
+        data = dict(sorted(data.items(), key=lambda item: (item[1]['sort_title'], item[1]['year'])))
         json.dump(data, file, indent=6)
-    print('film logged!')
+    if film_data:
+        print('film logged!')
 
 
 def read_data():

@@ -1,9 +1,9 @@
 from film_finder_gui import Window as Search_gui
 from film_viewer_gui import Window as Viewer_gui
 from pre_launch import pre_launch_main
-from PySide2.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton
+from PySide2.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QProgressDialog
 import sys
-
+import time
 
 class Window(QWidget):
     def __init__(self):
@@ -41,12 +41,20 @@ class Window(QWidget):
         # launches the library viewer window
         if self.app:
             self.app.close()
-        self.app = Viewer_gui()
+        progress = QProgressDialog('Loading film data...', None, 0, 98)
+        progress.setFixedSize(300, 100)
+        progress.show()
+        self.app = Viewer_gui(progress)
+        progress.canceled.connect(self.app.close)
         self.app.show()
 
 
 pre_launch_main()
 myapp = QApplication(sys.argv)
+with open("style_default.qss", "r") as f:
+    style_sheet = f.read()
+    myapp.setStyleSheet(style_sheet)
+
 window = Window()
 window.show()
 

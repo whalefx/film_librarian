@@ -14,7 +14,7 @@ FORMAT_ICONS = {
 FORMAT_OPTIONS = {
     'dvd': (1, 2),
     'bluray': ('A', 'B'),
-    '4k': (None,)
+    '4k': ('Region Free',)
 }
 
 
@@ -26,7 +26,7 @@ class Window(QWidget):
         self.data = data
         self.film_id = film_id
         self.film_data = data[self.film_id]
-        self.format = self.film_data['format']
+        self.format = self.film_data['format'].lower()
         self.region = self.film_data['region']
         self.update_search_mode = update_search_mode
         self.locked = True
@@ -63,7 +63,8 @@ class Window(QWidget):
         self.layout.addLayout(layout)
 
     def add_info(self):
-        def wrap(text, label=None):
+        vbox = QVBoxLayout()
+        def wrap(text, label=None, indent=2):
             data = film_data[text]
 
             if isinstance(data, list):
@@ -71,7 +72,7 @@ class Window(QWidget):
             else:
                 data = str(data)
 
-            _text = fill(data, 60, subsequent_indent='\t\t')
+            _text = fill(data, 60, subsequent_indent='\t'*indent)
 
             if label:
                 _text = f'{label:.>30}{_text}'
@@ -81,12 +82,14 @@ class Window(QWidget):
         film_data = self.film_data
 
         # if film has a tagline prepare it
-        tagline = ''
         if len(film_data['tagline']) > 0:
-            tagline = f'\t{wrap("tagline")}\n\n'
+            tagline = f'\t{wrap("tagline", indent=1)}\n'
+            tag = QLabel(tagline)
+            tag.setObjectName('tagline')
+            vbox.addWidget(tag)
 
         # create the info text
-        info_txt = f'''{tagline}
+        info_txt = f'''
                 Year: {film_data["year"]}\n
                 Directed By: {wrap("directors")}\n
                 Written By: {wrap("writers")}\n
@@ -94,11 +97,11 @@ class Window(QWidget):
                 '''
 
         info = QLabel(info_txt)
-
+        vbox.addWidget(info)
         title = f"{film_data['title']} - {film_data['year']}"
         self.setWindowTitle(title)
 
-        self.layout.addWidget(info)
+        self.layout.addLayout(vbox)
 
     def add_buttons(self):
         hbox = QHBoxLayout()
@@ -154,7 +157,7 @@ class Window(QWidget):
         # init icon
         region_icon = QIcon()
 
-        region_options = FORMAT_OPTIONS[self.format]
+        region_options = FORMAT_OPTIONS[self.format.lower()]
 
         if cycle and not self.locked:
             index = region_options.index(self.region)

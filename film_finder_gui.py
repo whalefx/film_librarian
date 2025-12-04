@@ -81,6 +81,7 @@ class Window(QWidget):
         # create mults for searching
         size_mult = 1 if self.searching else .5
         show_poster = 1 if self.searching else 0
+        size_mult = 1
 
         # set window size
         self.setMinimumWidth(self.win_width)
@@ -233,10 +234,9 @@ class Window(QWidget):
         data = urllib.request.urlopen(img).read()
         pixmap = QPixmap()
         pixmap.loadFromData(data)
-        self.poster_label.setPixmap(pixmap)
+        self.poster_label.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
         self.poster_label.setPixmap(pixmap.scaled(2000 * self.poster_scale * self.scale,
                                                   3000 * self.poster_scale * self.scale))
-        self.poster_label.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
 
         # store film data
         self.film_data = film_data

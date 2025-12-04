@@ -1,5 +1,6 @@
 from PySide2.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QGridLayout, QHBoxLayout, QLabel,
-                               QFrame, QScrollArea, QMessageBox, QLineEdit, QSizePolicy, QComboBox, QCompleter, QMenu, QMenuBar)
+                               QFrame, QScrollArea, QMessageBox, QLineEdit, QSizePolicy, QComboBox, QCompleter, QMenu,
+                               QMenuBar, QProgressDialog, QSpacerItem)
 from PySide2.QtGui import QIcon, QFont, QPixmap
 from PySide2.QtCore import Qt, QSize, QRegExp
 from film_finder import read_data
@@ -12,16 +13,18 @@ from textwrap import fill
 import re
 from pre_launch import pre_launch_viewer
 
-
 class Window(QWidget):
-    def __init__(self):
+    def __init__(self, progress):
         super().__init__()
+
+        # manage progress bar
+        self.progress = progress
 
         # init window settings
         self.setWindowTitle('Film Library')
         self.setGeometry(100, 50, 1200, 800)
-        self.grid_amount = 3
-        self.scale = 0.15
+        self.grid_amount = 4
+        self.scale = .75
 
         # init button settings
         self.wrapper = None
@@ -55,6 +58,8 @@ class Window(QWidget):
         self.setLayout(self.layout)
         self.movies = self.wrapper.findChildren(QFrame, QRegExp('film_.+'))
 
+        self.setMinimumSize(QSize(self.size()))
+
     def _add_films_to_grid(self, film_data):
         """
         Creates a QFrame containing an image and label for each film in the library
@@ -65,15 +70,21 @@ class Window(QWidget):
         :return:
             None
         """
+        # manage progress bar
+        self.progress.setMaximum(len(film_data.keys()))
 
-        # TODO: should this be merged with the create_grid_layout method?
         # make posters folder if it doesn't already exist
         _dir = os.path.dirname(os.path.abspath(__file__))
         poster_folder = os.path.join(_dir, 'posters')
         if not os.path.isdir(poster_folder):
             os.mkdir(poster_folder)
+            print('making poster folder...')
 
         for i, (k, v) in enumerate(film_data.items()):
+            # progress bar management
+            self.progress.setValue(i+1)
+            QApplication.processEvents()
+
             frame = QFrame(self.groupBox)
             vbox = QVBoxLayout()
 
@@ -89,9 +100,9 @@ class Window(QWidget):
             pixmap.load(poster_file)
 
             # setup poster button
-            poster_button = QPushButton(QIcon(pixmap), '')
+            poster_button = QPushButton(QIcon(pixmap), '', objectName='poster')
             poster_button.setFlat(True)
-            poster_button.setIconSize(QSize(int(2000 * self.scale), int(3000 * self.scale)))
+            poster_button.setIconSize(QSize(int(300 * self.scale), int(450 * self.scale)))
 
             # connect buttons to method, using the partial method to link each button individually
             poster_button.clicked.connect(partial(self.show_film_info, film_id=k))
@@ -101,13 +112,13 @@ class Window(QWidget):
             # setup text
             film = QLabel(v['title'])
             film.setAlignment(Qt.AlignHCenter | Qt.AlignBottom)
-            film.setFont(QFont('Sanserif', 13))
+            # film.setFont(QFont('Sanserif', 13))
             vbox.addWidget(film)
 
             # add additional info
             info = QLabel('info')
             info.setAlignment(Qt.AlignHCenter | Qt.AlignBottom)
-            info.setFont(QFont('Sanserif', 11))
+            # info.setFont(QFont('Sanserif', 11))
             info.setObjectName('info')
             info.hide()
             vbox.addWidget(info)
@@ -123,6 +134,8 @@ class Window(QWidget):
             vertical = i / self.grid_amount
             self.grid_layout.addWidget(frame, vertical, horizontal, alignment=self.grid_alignment)
             v['orig_pos'] = (vertical, horizontal)
+
+            poster_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
     def create_filter_bar(self):
@@ -148,6 +161,7 @@ class Window(QWidget):
         # create search bar
         self.search_bar = QLineEdit('')
         self.search_bar.textChanged.connect(self.search)
+        self.search_bar.setPlaceholderText('Search')
 
         # create search menu with an item for each entry in the self.token dict
         self.search_menu = QComboBox()
@@ -232,6 +246,8 @@ class Window(QWidget):
         :return:
             None
         """
+        if self.info_popup:
+            self.info_popup.close()
         self.info_popup = Info(film_id, self.data, self.update_search_mode)
         self.info_popup.show()
 
@@ -265,71 +281,81 @@ class Window(QWidget):
 
         # search for string results
         _search_results = {}
+        searching = True
+        tolerance_mult = 1
 
         # find which films match the search term, using the fuzzywuzzy library for better results on non-exact terms
-        for k, v in self.search_results.items():
-            search_dict = True
-            tolerance = 50
-            ratio = 0
-
-            # get the relevant data to search based on the token
-            if token == 'actors':
-                film_data_to_search = list(v['actors'].keys())
-            elif token == 'characters':
-                film_data_to_search = list(v['actors'].values())
-            elif token == 'keywords':
-                film_data_to_search = v['keywords']
-            else:
-                film_data_to_search = v[token]
-                search_dict = False
-
-            str_text = str(text)
-            if search_dict:
-                # for dict searches get the matches and the ratio from the process.extract method
-                tolerance = 80
-                search = process.extract(str_text, film_data_to_search, limit=1000)
-                matches = [x for x, r in search if r >= tolerance]
-
-                if len(matches) == 0:
-                    ratio = 0
+        while searching:
+            highest_ratio = -1
+            for k, v in self.search_results.items():
+                search_dict = True
+                ratio = 0
+                tolerance = 50 * tolerance_mult
+                # get the relevant data to search based on the token
+                if token == 'actors':
+                    film_data_to_search = list(v['actors'].keys())
+                elif token == 'characters':
+                    film_data_to_search = list(v['actors'].values())
+                elif token == 'keywords':
+                    film_data_to_search = v['keywords']
                 else:
-                    ratio = max([r for x, r in search])
-                    # if match found update the text box (the results are dynamic, so it has to be done at search time)
-                    movie = [x for x in self.movies if x.objectName() == f'film_{v["id"]}'][0]
-                    info = ', '.join(matches)
-                    # using textwrap to make sure boxes with lots of info don't grow horizontally
-                    info = fill(info, 48)
+                    film_data_to_search = v[token]
+                    search_dict = False
 
-                    # find info box for this film
-                    info_box = movie.findChildren(QLabel, QRegExp('info'))[0]
-                    info_box.setText(info.title())
-            elif token == 'year':
-                # check if searching for a decade
-                pattern = r'^(?:\d{1}|\d{3})0s$'
-                if re.fullmatch(pattern, str_text):
-                    if len(str_text) == 3:
-                        # assume the 20th century if not specified (i.e. 20s would refer to 1920s not 2020s)
-                        str_text = '19' + str_text
+                str_text = str(text)
+                if search_dict:
+                    # for dict searches get the matches and the ratio from the process.extract method
+                    tolerance = 80 * tolerance_mult
+                    search = process.extract(str_text, film_data_to_search, limit=1000)
+                    matches = [x for x, r in search if r >= tolerance]
 
-                    # automatically succeed if century and decade match
-                    ratio = 100 if str_text[1:3] == str(film_data_to_search)[1:3] else 0
+                    if len(matches) == 0:
+                        ratio = 0
+                    else:
+                        ratio = max([r for x, r in search])
+                        # if match found update the text box
+                        # (the results are dynamic, so it has to be done at search time)
+                        movie = [x for x in self.movies if x.objectName() == f'film_{v["id"]}'][0]
+                        info = ', '.join(matches)
+                        # using textwrap to make sure boxes with lots of info don't grow horizontally
+                        info = fill(info, 48)
 
-                    # subtract by the year in the decade to sort ascending
-                    ratio -= int(str(film_data_to_search)[-1])
+                        # find info box for this film
+                        info_box = movie.findChildren(QLabel, QRegExp('info'))[0]
+                        info_box.setText(info.title())
+                elif token == 'year':
+                    # check if searching for a decade
+                    pattern = r'^(?:\d{1}|\d{3})0s$'
+                    if re.fullmatch(pattern, str_text):
+                        if len(str_text) == 3:
+                            # assume the 20th century if not specified (i.e. 20s would refer to 1920s not 2020s)
+                            str_text = '19' + str_text
+
+                        # automatically succeed if century and decade match
+                        ratio = 100 if str_text[1:3] == str(film_data_to_search)[1:3] else 0
+                        # deactivate progressive search if no match
+                        searching = ratio == 0
+                        # subtract by the year in the decade to sort ascending
+                        ratio -= int(str(film_data_to_search)[-1])
+                    else:
+                        # if a film is within 4 years of the year searched add it to the results
+                        try:
+                            ratio = 54 - (abs(int(film_data_to_search) - int(text)))
+                        except ValueError:
+                            self.search_bar.setText('')
                 else:
-                    # if a film is within 4 years of the year searched add it to the results
-                    try:
-                        ratio = 54-(abs(int(film_data_to_search)-int(text)))
-                    except ValueError:
-                        self.search_bar.setText('')
-            else:
-                # search strings and lists normally
-                ratio = fuzz.token_set_ratio(film_data_to_search, str_text)
+                    # search strings and lists normally
+                    ratio = fuzz.token_set_ratio(film_data_to_search, str_text)
 
-            if ratio >= tolerance:
-                v['ratio'] = ratio
-                v['frame'] = [x for x in self.movies if x.objectName() == k][0]
-                _search_results[k] = v
+                if ratio >= tolerance:
+                    v['ratio'] = ratio
+                    v['frame'] = [x for x in self.movies if x.objectName() == k][0]
+                    _search_results[k] = v
+                    searching = False
+            if searching:
+                tolerance_mult *= .9
+                if tolerance_mult < .1:
+                    searching = False
 
         # sort search results by how much it matched
         _search_results = dict(sorted(_search_results.items(), key=lambda item: (-item[1]['ratio'], item[1]['title'])))
@@ -348,8 +374,18 @@ class Window(QWidget):
                 movie.hide()
 
         # layout relevant movies based on their search order
+        # add spacers to fill empty spaces in row
+        for i in range(self.grid_amount - len(self.search_results.keys())):
+            spacer = {f'add_{i}': {'frame': QSpacerItem(1, 1, QSizePolicy.Expanding, QSizePolicy.Expanding)}}
+            self.search_results.update(spacer)
         for i, (k, v) in enumerate(self.search_results.items()):
             frame = v['frame']
             horizontal = i % self.grid_amount
             vertical = i / self.grid_amount
-            self.grid_layout.addWidget(frame, vertical, horizontal, alignment=self.grid_alignment)
+            if k.startswith('film'):
+                self.grid_layout.addWidget(frame, vertical, horizontal, alignment=self.grid_alignment)
+            else:
+                self.grid_layout.addItem(frame, vertical, horizontal, alignment=self.grid_alignment)
+
+    # def resizeEvent(self, event):
+    #     print("Widget resized to:", event.size())

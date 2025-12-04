@@ -15,7 +15,8 @@ data_defaults = {
     'format': 'dvd',
     'region': 2,
     'width': 14,
-    'boxset': False
+    'boxset': False,
+    'sort_title': None,
 }
 
 from dataclasses import fields
@@ -39,7 +40,8 @@ async def get_film_details(tmdb, film_id):
         'poster': found_film.poster_url(),
         'id': film_id,
         'title': found_film.title,
-        'keywords': []
+        'keywords': [],
+        'sort_title': found_film.title,
     }
     }
 
@@ -59,5 +61,9 @@ async def get_film_details(tmdb, film_id):
         [keywords.append(getattr(key, x.name)) for x in fields(key) if x.name == 'name']
 
     film_data[title]['keywords'] = keywords
+
+    # get sort name
+    if found_film.title.lower().startswith('the '):
+        film_data[title]['sort_title'] = found_film.title[4:]
 
     return img, film_data

@@ -10,7 +10,7 @@ def init_missing_data():
     data = read_data()
     for film_id, v in data.items():
         film_data = v
-        need_fix = default.keys() != film_data.keys()
+        need_fix = sorted(default.keys()) != sorted(film_data.keys())
         if need_fix:
             # add missing data from defaults
             for k2, v2 in default.items():
@@ -30,7 +30,7 @@ async def update_missing_values(ignore=()):
         for k2, v2 in film_data.items():
             if k2 in ignore:
                 continue
-            if v2 is None:
+            if v2 is None and k2 != 'region':
                 _img, missing_data = await get_film_details(tmdb, film_id[5:])
                 film_data = {film_id: film_data}
                 film_data[film_id][k2] = missing_data[film_id][k2]
