@@ -12,6 +12,8 @@ import os
 from textwrap import fill
 import re
 from pre_launch import pre_launch_viewer
+from pi_interact import Talker
+import utility as util
 
 class Window(QWidget):
     def __init__(self, progress):
@@ -22,7 +24,7 @@ class Window(QWidget):
 
         # init window settings
         self.setWindowTitle('Film Library')
-        self.setGeometry(100, 50, 1200, 800)
+        self.setGeometry(0, 0, 1280, 720)
         self.grid_amount = 4
         self.scale = .75
 
@@ -59,6 +61,9 @@ class Window(QWidget):
         self.movies = self.wrapper.findChildren(QFrame, QRegExp('film_.+'))
 
         self.setMinimumSize(QSize(self.size()))
+
+        # pi interaction setup
+        self.talker = Talker()
 
     def _add_films_to_grid(self, film_data):
         """
@@ -248,7 +253,13 @@ class Window(QWidget):
         """
         if self.info_popup:
             self.info_popup.close()
-        self.info_popup = Info(film_id, self.data, self.update_search_mode)
+
+        # manage lights and lcd
+        self.talker.send('backlight_on()')
+        self.talker.send(f'write("{util.simplify_text(self.data[film_id]["title"])} ({self.data[film_id]["year"]})")')
+        self.talker.send('turn_on({}, {}, {}, {})'.format(*[int(d) for d in str(self.data[film_id]["year"])]))
+
+        self.info_popup = Info(film_id, self.data, self.update_search_mode, self.talker)
         self.info_popup.show()
 
     def search(self):

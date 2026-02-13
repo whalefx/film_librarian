@@ -19,7 +19,7 @@ FORMAT_OPTIONS = {
 
 
 class Window(QWidget):
-    def __init__(self, film_id, data, update_search_mode):
+    def __init__(self, film_id, data, update_search_mode, talker):
         super().__init__()
 
         # init data
@@ -46,6 +46,9 @@ class Window(QWidget):
         self.layout.setAlignment(Qt.AlignCenter)
 
         self.setMaximumSize(QSize(self.size()))
+
+        # check for talker
+        self.talker = talker
 
     def add_lock(self):
         layout = QHBoxLayout()
@@ -204,3 +207,8 @@ class Window(QWidget):
         self.lock_button.setIcon(icon)
         self.lock_button.setIconSize(QSize(15, 15))
 
+    def closeEvent(self, event):
+        # turn off lights and text
+        self.talker.send('write("")')
+        self.talker.send('turn_on()')
+        self.talker.send('backlight_off()')
