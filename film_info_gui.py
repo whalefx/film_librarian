@@ -208,7 +208,8 @@ class Window(QWidget):
         self.lock_button.setIconSize(QSize(15, 15))
 
     def closeEvent(self, event):
-        # turn off lights and text
-        self.talker.send('write("")')
-        self.talker.send('turn_on()')
-        self.talker.send('backlight_off()')
+        if self.talker.is_active:
+            # turn off lights and text
+            self.talker.send('write("")')
+            self.talker.send('turn_on()')
+            self.talker.send('backlight_off()')

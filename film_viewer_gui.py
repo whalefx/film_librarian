@@ -15,6 +15,7 @@ from pre_launch import pre_launch_viewer
 from pi_interact import Talker
 import utility as util
 
+
 class Window(QWidget):
     def __init__(self, progress):
         super().__init__()
@@ -87,7 +88,7 @@ class Window(QWidget):
 
         for i, (k, v) in enumerate(film_data.items()):
             # progress bar management
-            self.progress.setValue(i+1)
+            self.progress.setValue(i + 1)
             QApplication.processEvents()
 
             frame = QFrame(self.groupBox)
@@ -254,10 +255,12 @@ class Window(QWidget):
         if self.info_popup:
             self.info_popup.close()
 
-        # manage lights and lcd
-        self.talker.send('backlight_on()')
-        self.talker.send(f'write("{util.simplify_text(self.data[film_id]["title"])} ({self.data[film_id]["year"]})")')
-        self.talker.send('turn_on({}, {}, {}, {})'.format(*[int(d) for d in str(self.data[film_id]["year"])]))
+        if self.talker.is_active:
+            # manage lights and lcd
+            self.talker.send('backlight_on()')
+            self.talker.send(
+                f'write("{util.simplify_text(self.data[film_id]["title"])} ({self.data[film_id]["year"]})")')
+            self.talker.send('turn_on({}, {}, {}, {})'.format(*[int(d) for d in str(self.data[film_id]["year"])]))
 
         self.info_popup = Info(film_id, self.data, self.update_search_mode, self.talker)
         self.info_popup.show()
